@@ -1,0 +1,62 @@
+{
+  "total_pixels": 980156416,
+  "per_class": {
+    "0": {
+      "name": "SMOOTH",
+      "pixel_count": 10736692,
+      "frequency": 0.010954,
+      "raw_weight": 15.2151,
+      "normalized_weight": 30.5179,
+      "capped_weight": 30.5179
+    },
+    "1": {
+      "name": "ROUGH",
+      "pixel_count": 327661155,
+      "frequency": 0.334295,
+      "raw_weight": 0.4986,
+      "normalized_weight": 1.0,
+      "capped_weight": 1.0
+    },
+    "2": {
+      "name": "BUMPY",
+      "pixel_count": 191624422,
+      "frequency": 0.195504,
+      "raw_weight": 0.8525,
+      "normalized_weight": 1.7099,
+      "capped_weight": 1.7099
+    },
+    "3": {
+      "name": "FORBIDDEN",
+      "pixel_count": 1355319,
+      "frequency": 0.001383,
+      "raw_weight": 120.5321,
+      "normalized_weight": 241.7594,
+      "capped_weight": 50.0
+    },
+    "4": {
+      "name": "OBSTACLE",
+      "pixel_count": 129778032,
+      "frequency": 0.132405,
+      "raw_weight": 1.2588,
+      "normalized_weight": 2.5248,
+      "capped_weight": 2.5248
+    },
+    "5": {
+      "name": "BACKGROUND",
+      "pixel_count": 319000796,
+      "frequency": 0.325459,
+      "raw_weight": 0.5121,
+      "normalized_weight": 1.0271,
+      "capped_weight": 1.0271
+    }
+  },
+  "weight_vector": [
+    30.5179,
+    1.0,
+    1.7099,
+    50.0,
+    2.5248,
+    1.0271
+  ],
+  "max_weight_cap": 50.0
+}

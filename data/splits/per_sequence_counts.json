@@ -1,0 +1,32 @@
+{
+  "00000": {
+    "total_pairs": 1200,
+    "train": 720,
+    "val": 240,
+    "test": 240
+  },
+  "00001": {
+    "total_pairs": 1161,
+    "train": 696,
+    "val": 232,
+    "test": 233
+  },
+  "00002": {
+    "total_pairs": 2074,
+    "train": 1244,
+    "val": 415,
+    "test": 415
+  },
+  "00003": {
+    "total_pairs": 900,
+    "train": 540,
+    "val": 180,
+    "test": 180
+  },
+  "00004": {
+    "total_pairs": 899,
+    "train": 539,
+    "val": 180,
+    "test": 180
+  }
+}

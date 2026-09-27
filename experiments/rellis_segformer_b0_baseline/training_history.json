@@ -1,0 +1,172 @@
+[
+  {
+    "epoch": 0,
+    "train_loss": 0.552636,
+    "val_loss": 0.329105,
+    "miou": 0.6388,
+    "pixel_accuracy": 0.8748,
+    "per_class_iou": {
+      "SMOOTH": 0.7177,
+      "ROUGH": 0.798,
+      "BUMPY": 0.5924,
+      "FORBIDDEN": 0.0,
+      "OBSTACLE": 0.7991,
+      "BACKGROUND": 0.9258
+    },
+    "lr": 5.959042516007253e-05,
+    "epoch_time_s": 435.3
+  },
+  {
+    "epoch": 1,
+    "train_loss": 0.180049,
+    "val_loss": 0.341586,
+    "miou": 0.6725,
+    "pixel_accuracy": 0.8889,
+    "per_class_iou": {
+      "SMOOTH": 0.845,
+      "ROUGH": 0.8159,
+      "BUMPY": 0.6266,
+      "FORBIDDEN": 0.0,
+      "OBSTACLE": 0.8144,
+      "BACKGROUND": 0.9333
+    },
+    "lr": 5.638314875766586e-05,
+    "epoch_time_s": 404.5
+  },
+  {
+    "epoch": 2,
+    "train_loss": 0.145258,
+    "val_loss": 0.277939,
+    "miou": 0.6707,
+    "pixel_accuracy": 0.8901,
+    "per_class_iou": {
+      "SMOOTH": 0.8162,
+      "ROUGH": 0.8151,
+      "BUMPY": 0.6394,
+      "FORBIDDEN": 0.0,
+      "OBSTACLE": 0.8176,
+      "BACKGROUND": 0.9356
+    },
+    "lr": 5.031700835572443e-05,
+    "epoch_time_s": 387.6
+  },
+  {
+    "epoch": 3,
+    "train_loss": 0.132036,
+    "val_loss": 0.294492,
+    "miou": 0.6777,
+    "pixel_accuracy": 0.8951,
+    "per_class_iou": {
+      "SMOOTH": 0.83,
+      "ROUGH": 0.8256,
+      "BUMPY": 0.6471,
+      "FORBIDDEN": 0.0,
+      "OBSTACLE": 0.8229,
+      "BACKGROUND": 0.9407
+    },
+    "lr": 4.204932770929073e-05,
+    "epoch_time_s": 401.4
+  },
+  {
+    "epoch": 4,
+    "train_loss": 0.122745,
+    "val_loss": 0.286784,
+    "miou": 0.6802,
+    "pixel_accuracy": 0.8946,
+    "per_class_iou": {
+      "SMOOTH": 0.8398,
+      "ROUGH": 0.818,
+      "BUMPY": 0.6586,
+      "FORBIDDEN": 0.0,
+      "OBSTACLE": 0.8243,
+      "BACKGROUND": 0.9406
+    },
+    "lr": 3.2475988306084144e-05,
+    "epoch_time_s": 412.4
+  },
+  {
+    "epoch": 5,
+    "train_loss": 0.114995,
+    "val_loss": 0.326569,
+    "miou": 0.6744,
+    "pixel_accuracy": 0.891,
+    "per_class_iou": {
+      "SMOOTH": 0.8326,
+      "ROUGH": 0.8126,
+      "BUMPY": 0.6352,
+      "FORBIDDEN": 0.0,
+      "OBSTACLE": 0.8245,
+      "BACKGROUND": 0.9418
+    },
+    "lr": 2.2634352123878572e-05,
+    "epoch_time_s": 410.5
+  },
+  {
+    "epoch": 6,
+    "train_loss": 0.109634,
+    "val_loss": 0.31691,
+    "miou": 0.6785,
+    "pixel_accuracy": 0.8936,
+    "per_class_iou": {
+      "SMOOTH": 0.8374,
+      "ROUGH": 0.8159,
+      "BUMPY": 0.6466,
+      "FORBIDDEN": 0.0,
+      "OBSTACLE": 0.827,
+      "BACKGROUND": 0.944
+    },
+    "lr": 1.3590853637052325e-05,
+    "epoch_time_s": 406.3
+  },
+  {
+    "epoch": 7,
+    "train_loss": 0.105255,
+    "val_loss": 0.326218,
+    "miou": 0.6794,
+    "pixel_accuracy": 0.8931,
+    "per_class_iou": {
+      "SMOOTH": 0.8472,
+      "ROUGH": 0.8138,
+      "BUMPY": 0.643,
+      "FORBIDDEN": 0.0,
+      "OBSTACLE": 0.8282,
+      "BACKGROUND": 0.9441
+    },
+    "lr": 6.325441542832913e-06,
+    "epoch_time_s": 428.3
+  },
+  {
+    "epoch": 8,
+    "train_loss": 0.102253,
+    "val_loss": 0.335044,
+    "miou": 0.6807,
+    "pixel_accuracy": 0.8948,
+    "per_class_iou": {
+      "SMOOTH": 0.8492,
+      "ROUGH": 0.8201,
+      "BUMPY": 0.6448,
+      "FORBIDDEN": 0.0,
+      "OBSTACLE": 0.8272,
+      "BACKGROUND": 0.9431
+    },
+    "lr": 1.6253920404614886e-06,
+    "epoch_time_s": 417.9
+  },
+  {
+    "epoch": 9,
+    "train_loss": 0.101464,
+    "val_loss": 0.338762,
+    "miou": 0.6789,
+    "pixel_accuracy": 0.8936,
+    "per_class_iou": {
+      "SMOOTH": 0.8456,
+      "ROUGH": 0.8181,
+      "BUMPY": 0.6421,
+      "FORBIDDEN": 0.0,
+      "OBSTACLE": 0.8257,
+      "BACKGROUND": 0.9421
+    },
+    "lr": 0.0,
+    "epoch_time_s": 404.5
+  }
+]

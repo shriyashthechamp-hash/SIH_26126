@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Large datasets
+data/rellis3d/
+data/**/images/
+data/**/image/
+data/**/rgb/
+data/**/RGB/
+data/**/masks/
+
+# Large model/checkpoint files
+*.pt
+*.pth
+*.onnx
+*.ckpt
+
+# Logs / generated outputs
+*.log
+runs/
+outputs/
+results/.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+runs/
+logs/
+outputs/
+data/raw/
+data/rugd/
+data/rellis3d/
+*.pt
+*.pth
+*.onnx

@@ -1,0 +1,261 @@
+# =============================================================================
+# SIH 26126 — Class Mapping Configuration
+# =============================================================================
+#
+# Maps raw RELLIS-3D semantic label IDs to our 6 navigation classes.
+#
+# These are PROJECT-LEVEL ENGINEERING DECISIONS, not claims about the
+# original RELLIS-3D ontology or ground-truth traversability.
+#
+# Source of truth:
+#   - RELLIS ontology: data/rellis3d/benchmarks/SalsaNext/train/tasks/semantic/config/labels/rellis.yaml
+#   - Official label_convert.py: data/rellis3d/utils/label_convert.py
+#   - Pixel-level verification across sequences 00000–00004
+#
+# Created: 2026-09-25
+# =============================================================================
+
+dataset:
+  name: rellis3d
+  sequences_verified: ["00000", "00001", "00002", "00003", "00004"]
+  total_paired_samples: 6234
+  notes: >
+    Training samples are defined as valid RGB + semantic mask pairs.
+    Not every RGB frame has a corresponding annotation.
+
+# ---------------------------------------------------------------------------
+# Navigation classes (our 6-class taxonomy)
+# ---------------------------------------------------------------------------
+navigation_classes:
+  0: SMOOTH      # Safe, paved/hard driveable surface
+  1: ROUGH       # Traversable natural terrain, uneven but firm
+  2: BUMPY       # Traversable with difficulty, risk, or discomfort
+  3: FORBIDDEN   # Non-traversable terrain (not a solid object)
+  4: OBSTACLE    # Solid physical obstacle — must not drive into
+  5: BACKGROUND  # Not part of the navigable ground scene
+
+# ---------------------------------------------------------------------------
+# Source class mapping: raw RELLIS ID → navigation class
+# ---------------------------------------------------------------------------
+# "observed" indicates whether this ID was found in our 5 sequences.
+# IDs 29, 30, 32 are from the official label_convert.py but were NOT
+# observed in our data. They are included defensively.
+# ---------------------------------------------------------------------------
+source_classes:
+
+  # --- BACKGROUND ---
+  0:
+    name: void
+    observed: true
+    pixel_count: 1784
+    navigation_class: BACKGROUND
+    navigation_id: 5
+    rationale: "Unknown/unlabeled pixels. Not part of navigable scene."
+
+  7:
+    name: sky
+    observed: true
+    pixel_count: 4254332783
+    navigation_class: BACKGROUND
+    navigation_id: 5
+    rationale: "Above-horizon sky. Not ground terrain."
+
+  # --- SMOOTH ---
+  10:
+    name: asphalt
+    observed: true
+    pixel_count: 8865125
+    navigation_class: SMOOTH
+    navigation_id: 0
+    rationale: "Paved road surface. Ideal for driving."
+
+  23:
+    name: concrete
+    observed: true
+    pixel_count: 224468272
+    navigation_class: SMOOTH
+    navigation_id: 0
+    rationale: "Hard paved surface. Ideal for driving."
+
+  # --- ROUGH ---
+  1:
+    name: dirt
+    observed: true
+    pixel_count: 13907
+    navigation_class: ROUGH
+    navigation_id: 1
+    rationale: "Natural unpaved ground. Traversable but uneven."
+
+  3:
+    name: grass
+    observed: true
+    pixel_count: 4825443392
+    navigation_class: ROUGH
+    navigation_id: 1
+    rationale: "Natural ground cover. Traversable but not paved."
+
+  29:
+    name: grass_alias_29
+    observed: false
+    pixel_count: 0
+    navigation_class: ROUGH
+    navigation_id: 1
+    rationale: "Official label_convert.py maps 29→grass. Defensive entry."
+
+  30:
+    name: grass_alias_30
+    observed: false
+    pixel_count: 0
+    navigation_class: ROUGH
+    navigation_id: 1
+    rationale: "Official label_convert.py maps 30→grass. Defensive entry."
+
+  # --- BUMPY ---
+  19:
+    name: bush
+    observed: true
+    pixel_count: 2506074707
+    navigation_class: BUMPY
+    navigation_id: 2
+    rationale: "Dense vegetation. Possibly push-through but risky/difficult."
+
+  31:
+    name: puddle
+    observed: true
+    pixel_count: 100383475
+    navigation_class: BUMPY
+    navigation_id: 2
+    rationale: "Shallow standing water on ground. Traversable with risk."
+
+  33:
+    name: mud
+    observed: true
+    pixel_count: 314128234
+    navigation_class: BUMPY
+    navigation_id: 2
+    rationale: "Soft, slippery ground. Traversable with difficulty."
+
+  34:
+    name: rubble
+    observed: true
+    pixel_count: 26777183
+    navigation_class: BUMPY
+    navigation_id: 2
+    rationale: "Loose broken material. Traversable with difficulty."
+
+  # --- FORBIDDEN ---
+  6:
+    name: water
+    observed: true
+    pixel_count: 11911987
+    navigation_class: FORBIDDEN
+    navigation_id: 3
+    rationale: "Open/deep water. Ground vehicle cannot traverse."
+
+  32:
+    name: water_alias_32
+    observed: false
+    pixel_count: 0
+    navigation_class: FORBIDDEN
+    navigation_id: 3
+    rationale: "Official label_convert.py maps 32→water. Defensive entry."
+
+  # --- OBSTACLE ---
+  4:
+    name: tree
+    observed: true
+    pixel_count: 2003779883
+    navigation_class: OBSTACLE
+    navigation_id: 4
+    rationale: "Solid physical object blocking path."
+
+  5:
+    name: pole
+    observed: true
+    pixel_count: 2976861
+    navigation_class: OBSTACLE
+    navigation_id: 4
+    rationale: "Rigid vertical structure."
+
+  8:
+    name: vehicle
+    observed: true
+    pixel_count: 5248654
+    navigation_class: OBSTACLE
+    navigation_id: 4
+    rationale: "Solid movable object."
+
+  9:
+    name: object
+    observed: true
+    pixel_count: 4779386
+    navigation_class: OBSTACLE
+    navigation_id: 4
+    rationale: "Generic solid object."
+
+  12:
+    name: building
+    observed: true
+    pixel_count: 3291967
+    navigation_class: OBSTACLE
+    navigation_id: 4
+    rationale: "Solid structure."
+
+  15:
+    name: log
+    observed: true
+    pixel_count: 4687307
+    navigation_class: OBSTACLE
+    navigation_id: 4
+    rationale: "Solid object on ground blocking path."
+
+  17:
+    name: person
+    observed: true
+    pixel_count: 9093656
+    navigation_class: OBSTACLE
+    navigation_id: 4
+    rationale: "Must not drive into a person. Safety critical."
+
+  18:
+    name: fence
+    observed: true
+    pixel_count: 4780775
+    navigation_class: OBSTACLE
+    navigation_id: 4
+    rationale: "Rigid barrier structure."
+
+  27:
+    name: barrier
+    observed: true
+    pixel_count: 52096662
+    navigation_class: OBSTACLE
+    navigation_id: 4
+    rationale: "Explicit barrier object."
+
+# ---------------------------------------------------------------------------
+# Unmapped / unknown handling
+# ---------------------------------------------------------------------------
+unknown_handling:
+  strategy: "map_to_background"
+  navigation_id: 5
+  rationale: >
+    Any raw label ID not listed in source_classes is treated as BACKGROUND (5).
+    This is a conservative safety decision — unknown terrain is not assumed
+    traversable.
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+# Observed raw IDs: 0,1,3,4,5,6,7,8,9,10,12,15,17,18,19,23,27,31,33,34
+# Defensive IDs:    29, 30, 32 (not observed but handled)
+# Total mapped:     23 raw IDs → 6 navigation classes
+#
+# Nav class distribution (by distinct source classes):
+#   SMOOTH:     2  (asphalt, concrete)
+#   ROUGH:      4  (dirt, grass, 29, 30)
+#   BUMPY:      4  (bush, puddle, mud, rubble)
+#   FORBIDDEN:  2  (water, 32)
+#   OBSTACLE:   9  (tree, pole, vehicle, object, building, log, person, fence, barrier)
+#   BACKGROUND: 2  (void, sky)
+# ---------------------------------------------------------------------------

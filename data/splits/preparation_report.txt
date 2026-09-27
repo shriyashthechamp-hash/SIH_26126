@@ -1,0 +1,76 @@
+============================================================================
+SIH 26126 — Dataset Preparation Report
+============================================================================
+
+Resolution:      512×512
+Mode:            FULL PROCESSING
+Time:            166.3s
+Split strategy:  60%/20%/20% temporal within each sequence
+  NOTE: This is a temporal split. Train/val boundaries within a sequence
+        have ~0.5s temporal proximity. This is accepted as a trade-off to
+        ensure all six navigation classes appear in every split.
+
+--- Per-Sequence Pair Counts ---
+  Sequence   Total   Train     Val    Test
+  ------------------------------------------
+     00000    1200     720     240     240
+     00001    1161     696     232     233
+     00002    2074    1244     415     415
+     00003     900     540     180     180
+     00004     899     539     180     180
+  ------------------------------------------
+     TOTAL    6234    3739    1247    1248
+
+--- Per-Split Class Distribution ---
+
+  [TRAIN] (3739 pairs, 980,156,416 total pixels)
+    0 SMOOTH      :      10,736,692 px  ( 1.095%)
+    1 ROUGH       :     327,661,155 px  (33.429%)
+    2 BUMPY       :     191,624,422 px  (19.550%)
+    3 FORBIDDEN   :       1,355,319 px  ( 0.138%)
+    4 OBSTACLE    :     129,778,032 px  (13.241%)
+    5 BACKGROUND  :     319,000,796 px  (32.546%)
+
+  [VAL] (1247 pairs, 326,893,568 total pixels)
+    0 SMOOTH      :      11,690,722 px  ( 3.576%)
+    1 ROUGH       :     109,209,472 px  (33.408%)
+    2 BUMPY       :      67,889,125 px  (20.768%)
+    3 FORBIDDEN   :               2 px  ( 0.000%) ⚠ TRACE
+    4 OBSTACLE    :      64,039,484 px  (19.590%)
+    5 BACKGROUND  :      74,064,763 px  (22.657%)
+
+  [TEST] (1248 pairs, 327,155,712 total pixels)
+    0 SMOOTH      :       4,120,646 px  ( 1.260%)
+    1 ROUGH       :     112,157,017 px  (34.282%)
+    2 BUMPY       :      75,834,107 px  (23.180%)
+    3 FORBIDDEN   :               0 px  ( 0.000%) ⚠ ZERO
+    4 OBSTACLE    :      44,057,788 px  (13.467%)
+    5 BACKGROUND  :      90,986,154 px  (27.811%)
+
+--- Class Weights (from train split) ---
+  Max weight cap: 50.0
+  Weight vector:  [30.5179, 1.0, 1.7099, 50.0, 2.5248, 1.0271]
+
+  Nav ID  Class            Train Pixels      Freq   Norm Wt    Capped
+  --------------------------------------------------------------------
+       0  SMOOTH             10,736,692    0.0110     30.52     30.52
+       1  ROUGH             327,661,155    0.3343      1.00      1.00
+       2  BUMPY             191,624,422    0.1955      1.71      1.71
+       3  FORBIDDEN           1,355,319    0.0014    241.76     50.00
+       4  OBSTACLE          129,778,032    0.1324      2.52      2.52
+       5  BACKGROUND        319,000,796    0.3255      1.03      1.03
+
+--- Critical Class Validation ---
+  SMOOTH    in train:   10,736,692 px (1.0954%)
+  FORBIDDEN in train:    1,355,319 px (0.1383%)
+  ✅ Both critical classes have training signal.
+
+--- Output Paths ---
+  Processed images:    data/processed/rellis3d/
+  Split manifests:     data/splits/
+  Class weights:       data/splits/class_weights.json
+  Per-seq counts:      data/splits/per_sequence_counts.json
+
+============================================================================
+END OF REPORT
+============================================================================

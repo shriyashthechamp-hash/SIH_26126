@@ -1,0 +1,16 @@
+{
+  "best_miou": 0.6807,
+  "final_epoch": 9,
+  "final_train_loss": 0.101464,
+  "final_val_loss": 0.338762,
+  "final_miou": 0.6789,
+  "final_pixel_accuracy": 0.8936,
+  "final_per_class_iou": {
+    "SMOOTH": 0.8456,
+    "ROUGH": 0.8181,
+    "BUMPY": 0.6421,
+    "FORBIDDEN": 0.0,
+    "OBSTACLE": 0.8257,
+    "BACKGROUND": 0.9421
+  }
+}

@@ -1,0 +1,14 @@
+camera:
+  # Supported sources: mac_webcam, network_stream, video_file
+  source: mac_webcam
+
+  # For mac_webcam:
+  device_id: 0
+
+  # For network_stream (example):
+  # source: network_stream
+  # stream_url: "http://192.168.1.100:8080/video"
+
+  # For video_file (example):
+  # source: video_file
+  # file_path: "data/test_video.mp4"

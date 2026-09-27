@@ -1,0 +1,8 @@
+traversability:
+  smooth_cost: 0.0
+  rough_cost: 0.3
+  bumpy_cost: 0.6
+  forbidden_cost: 1.0
+  obstacle_cost: 1.0
+  background_cost: 0.8
+  obstacle_inflation: 0

@@ -1,0 +1,21 @@
+bev:
+  # Initial geometric assumptions for homography (approximate ground plane)
+  # Input image dimensions expected from camera/model
+  input_width: 1280
+  input_height: 720
+  
+  # BEV output dimensions
+  output_width: 400
+  output_height: 400
+
+  # Pseudo-camera extrinsics
+  camera_height_m: 0.5        # Height of the camera above ground
+  camera_pitch_deg: 15.0      # Downward pitch of the camera (degrees)
+  horizontal_fov_deg: 60.0    # Approximate FOV
+  
+  # Spatial bounds of the BEV grid (meters)
+  # Origin is bottom-center of the BEV image
+  near_distance_m: 0.5        # Closest distance visible on the ground
+  far_distance_m: 10.0        # Furthest distance mapped
+  left_distance_m: -5.0       # Leftward boundary
+  right_distance_m: 5.0       # Rightward boundary
