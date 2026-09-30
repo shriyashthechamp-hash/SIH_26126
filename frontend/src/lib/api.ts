@@ -1,24 +1,26 @@
 /**
  * DRISHTI Backend Adapter & WebSocket Bridge
  *
- * This module establishes the clean interface boundary for the frontend.
- * When FastAPI/WebSocket backend is enabled in future milestones,
- * this client connects to ws://localhost:8000/ws/telemetry without changing
- * any UI component logic.
+ * Connects the React frontend to the FastAPI/WebSocket backend.
+ * Uses Vite environment variables with graceful fallback to local and mock modes.
  */
 
 import { DrishtiSystemState, INITIAL_CLASSES, INITIAL_EVENTS } from './prototypeData';
 
 export interface DrishtiAdapterConfig {
-  backendUrl?: string;
-  wsUrl?: string;
+  backendUrl: string;
+  wsUrl: string;
   useMockData: boolean;
 }
 
+// Read from environment variables if defined, otherwise fallback to local backend
+const ENV_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const ENV_WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/telemetry';
+
 export const DEFAULT_CONFIG: DrishtiAdapterConfig = {
-  backendUrl: 'http://localhost:8000',
-  wsUrl: 'ws://localhost:8000/ws/telemetry',
-  useMockData: true,
+  backendUrl: ENV_API_URL,
+  wsUrl: ENV_WS_URL,
+  useMockData: false,
 };
 
 export class DrishtiTelemetryAdapter {
@@ -26,6 +28,8 @@ export class DrishtiTelemetryAdapter {
   private socket: WebSocket | null = null;
   private listeners: ((state: DrishtiSystemState) => void)[] = [];
   private currentState: DrishtiSystemState;
+  private isConnecting: boolean = false;
+  private pingInterval: number | null = null;
 
   constructor(config: Partial<DrishtiAdapterConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -96,6 +100,14 @@ export class DrishtiTelemetryAdapter {
     return this.currentState;
   }
 
+  public getBackendUrl(): string {
+    return this.config.backendUrl;
+  }
+
+  public getWsUrl(): string {
+    return this.config.wsUrl;
+  }
+
   public subscribe(callback: (state: DrishtiSystemState) => void): () => void {
     this.listeners.push(callback);
     callback(this.currentState);
@@ -116,41 +128,147 @@ export class DrishtiTelemetryAdapter {
   }
 
   /**
-   * Future Integration method for FastAPI / WebSocket server
+   * Health Check to verify backend status
    */
-  public connectWebSocket(customUrl?: string) {
-    if (this.config.useMockData) {
-      console.info('[DRISHTI Adapter] Mock mode active — WebSocket live connection deferred to future backend integration');
+  public async checkHealth(): Promise<{ ok: boolean; data?: any; error?: string }> {
+    try {
+      const response = await fetch(`${this.config.backendUrl}/health`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!response.ok) {
+        return { ok: false, error: `HTTP ${response.status}` };
+      }
+      const data = await response.json();
+      return { ok: true, data };
+    } catch (err: any) {
+      return { ok: false, error: err?.message || 'Network request failed' };
+    }
+  }
+
+  /**
+   * Send a captured video frame to the backend via POST /api/process-frame
+   */
+  public async sendFrame(blob: Blob): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const formData = new FormData();
+      formData.append('frame', blob, 'frame.jpg');
+
+      const response = await fetch(`${this.config.backendUrl}/api/process-frame`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}` };
+      }
+
+      const data = await response.json();
+      
+      // Update internal telemetry state with live perception output
+      if (data && data.perception) {
+        this.updateLocalState((prev) => ({
+          ...prev,
+          isLiveBackend: true,
+          perception: {
+            ...prev.perception,
+            ...data.perception,
+            status: 'ONLINE',
+          },
+          costmap: {
+            ...prev.costmap,
+            ...data.costmap,
+          },
+          navigation: {
+            ...prev.navigation,
+            ...data.navigation,
+            activePath: data.navigation.active_path || prev.navigation.activePath,
+            pathValid: data.navigation.path_valid ?? prev.navigation.pathValid,
+            systemState: data.navigation.system_state || prev.navigation.systemState,
+          },
+          recentEvents: data.event ? [data.event, ...prev.recentEvents.slice(0, 9)] : prev.recentEvents,
+        }));
+      }
+
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Frame upload failed' };
+    }
+  }
+
+  /**
+   * WebSocket telemetry connection with auto-ping
+   */
+  public connectWebSocket(onStateUpdate?: (state: DrishtiSystemState) => void) {
+    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
       return;
     }
 
-    const url = customUrl || this.config.wsUrl;
+    const url = this.config.wsUrl;
     try {
-      this.socket = new WebSocket(url!);
+      this.isConnecting = true;
+      this.socket = new WebSocket(url);
+
       this.socket.onopen = () => {
-        console.info(`[DRISHTI Adapter] Connected to live backend at ${url}`);
+        this.isConnecting = false;
+        console.info(`[DRISHTI Adapter] Connected to WebSocket at ${url}`);
         this.currentState.isLiveBackend = true;
         this.notifyListeners();
+
+        // Setup keepalive ping every 10s
+        this.pingInterval = window.setInterval(() => {
+          if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send('PING');
+          }
+        }, 10000);
       };
+
       this.socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          this.currentState = { ...this.currentState, ...data, isLiveBackend: true };
-          this.notifyListeners();
+          if (data && data.perception) {
+            this.updateLocalState((prev) => ({
+              ...prev,
+              isLiveBackend: true,
+              perception: { ...prev.perception, ...data.perception },
+              costmap: { ...prev.costmap, ...data.costmap },
+              navigation: {
+                ...prev.navigation,
+                ...data.navigation,
+                activePath: data.navigation.active_path || prev.navigation.activePath,
+                pathValid: data.navigation.path_valid ?? prev.navigation.pathValid,
+                systemState: data.navigation.system_state || prev.navigation.systemState,
+              },
+              recentEvents: data.event ? [data.event, ...prev.recentEvents.slice(0, 9)] : prev.recentEvents,
+            }));
+            if (onStateUpdate) onStateUpdate(this.currentState);
+          }
         } catch (err) {
-          console.error('[DRISHTI Adapter] Error parsing telemetry message:', err);
+          // Non-JSON message (e.g., PONG)
         }
       };
+
       this.socket.onclose = () => {
+        this.isConnecting = false;
+        this.currentState.isLiveBackend = false;
+        if (this.pingInterval) clearInterval(this.pingInterval);
+        this.notifyListeners();
+      };
+
+      this.socket.onerror = () => {
+        this.isConnecting = false;
         this.currentState.isLiveBackend = false;
         this.notifyListeners();
       };
     } catch (err) {
-      console.warn('[DRISHTI Adapter] Live WebSocket connection failed. Operating in Simulation Mode.', err);
+      this.isConnecting = false;
+      this.currentState.isLiveBackend = false;
+      this.notifyListeners();
     }
   }
 
   public disconnect() {
+    if (this.pingInterval) clearInterval(this.pingInterval);
     if (this.socket) {
       this.socket.close();
       this.socket = null;

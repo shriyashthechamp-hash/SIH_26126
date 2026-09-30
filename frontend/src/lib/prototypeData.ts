@@ -23,12 +23,13 @@ export interface PerceptionClassMetric {
 export interface PerceptionState {
   timestamp: number;
   frameId: number;
-  model: 'SegFormer-B0' | 'Pretrained-Fallback';
+  model: 'SegFormer-B0' | 'Pretrained-Fallback' | string;
   fps: number;
   inferenceMs: number;
   confidence: number;
   status: 'ONLINE' | 'DEGRADED' | 'OFFLINE';
   classes: PerceptionClassMetric[];
+  dominant_class?: string;
   obstacleCount: number;
 }
 

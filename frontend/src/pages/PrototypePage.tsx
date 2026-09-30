@@ -9,7 +9,13 @@ import {
   Compass, 
   ArrowLeft,
   Layers,
-  Info
+  Info,
+  Camera,
+  Video,
+  VideoOff,
+  RefreshCw,
+  Cpu,
+  AlertCircle
 } from 'lucide-react';
 import { 
   DrishtiSystemState, 
@@ -25,12 +31,54 @@ interface PrototypePageProps {
 
 export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) => {
   const [systemState, setSystemState] = useState<DrishtiSystemState>(() => telemetryAdapter.getState());
+  
+  // Operating Mode: 'DEMO' or 'LIVE'
+  const [operatingMode, setOperatingMode] = useState<'DEMO' | 'LIVE'>('DEMO');
+  
+  // Demo Mode State
   const [demoStepIndex, setDemoStepIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [activeObstacle, setActiveObstacle] = useState<boolean>(false);
   const [showSegOverlay, setShowSegOverlay] = useState<boolean>(true);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const playTimerRef = useRef<number | null>(null);
+
+  // Live Camera & Backend State
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [backendHealth, setBackendHealth] = useState<'ONLINE' | 'OFFLINE' | 'CHECKING'>('CHECKING');
+  const [liveOverlayB64, setLiveOverlayB64] = useState<string | null>(null);
+  const [captureFps, setCaptureFps] = useState<number>(2.5); // 2.5 FPS default capture rate
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const captureIntervalRef = useRef<number | null>(null);
+
+  // Subscribe to Telemetry Adapter
+  useEffect(() => {
+    const unsubscribe = telemetryAdapter.subscribe((newState) => {
+      setSystemState(newState);
+    });
+
+    // Check backend health on mount
+    checkBackendHealth();
+    const healthInterval = setInterval(checkBackendHealth, 8000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(healthInterval);
+      stopCameraStream();
+    };
+  }, []);
+
+  const checkBackendHealth = async () => {
+    const health = await telemetryAdapter.checkHealth();
+    if (health.ok) {
+      setBackendHealth('ONLINE');
+    } else {
+      setBackendHealth('OFFLINE');
+    }
+  };
 
   // Clock simulation
   useEffect(() => {
@@ -42,7 +90,7 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
 
   // Demo auto-player loop
   useEffect(() => {
-    if (isPlaying) {
+    if (operatingMode === 'DEMO' && isPlaying) {
       playTimerRef.current = window.setTimeout(() => {
         if (demoStepIndex < DEMO_SCRIPT_STEPS.length - 1) {
           applyDemoStep(demoStepIndex + 1);
@@ -56,7 +104,7 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
         clearTimeout(playTimerRef.current);
       }
     };
-  }, [isPlaying, demoStepIndex]);
+  }, [isPlaying, demoStepIndex, operatingMode]);
 
   const applyDemoStep = (stepIdx: number) => {
     setDemoStepIndex(stepIdx);
@@ -73,7 +121,7 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
         ? [
             { x: 0, y: 0 },
             { x: 1.2, y: 2.5 },
-            { x: 2.1, y: 5.5 }, // Bypassing left
+            { x: 2.1, y: 5.5 },
             { x: 3.8, y: 8.8 },
             { x: 7.5, y: 12.5 },
             { x: 10.2, y: 15.8 },
@@ -82,7 +130,7 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
         : [
             { x: 0, y: 0 },
             { x: 1.2, y: 2.1 },
-            { x: 2.5, y: 4.5 }, // Pierces nominal corridor
+            { x: 2.5, y: 4.5 },
             { x: 4.8, y: 7.2 },
             { x: 7.1, y: 10.8 },
             { x: 9.4, y: 14.5 },
@@ -96,6 +144,7 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
 
       return {
         ...prev,
+        isLiveBackend: false,
         localization: {
           ...prev.localization,
           trackingQuality: stepData.trackingQuality,
@@ -135,6 +184,76 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
     applyDemoStep(0);
   };
 
+  // Live Camera Controls
+  const startCameraStream = async () => {
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: 'environment',
+        },
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+
+      setIsCameraActive(true);
+      setOperatingMode('LIVE');
+      
+      // Start frame capture loop
+      const intervalMs = Math.round(1000 / captureFps);
+      captureIntervalRef.current = window.setInterval(captureAndSendFrame, intervalMs);
+
+    } catch (err: any) {
+      console.error('Camera access error:', err);
+      setCameraError(err?.message || 'Could not access device camera.');
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCameraStream = () => {
+    if (captureIntervalRef.current) {
+      clearInterval(captureIntervalRef.current);
+      captureIntervalRef.current = null;
+    }
+
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+
+    setIsCameraActive(false);
+  };
+
+  const captureAndSendFrame = async () => {
+    if (!videoRef.current || !canvasRef.current || videoRef.current.readyState < 2) {
+      return;
+    }
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, 640, 480);
+
+    canvas.toBlob(async (blob) => {
+      if (blob) {
+        const res = await telemetryAdapter.sendFrame(blob);
+        if (res.success && res.data?.overlays?.segmentation) {
+          setLiveOverlayB64(res.data.overlays.segmentation);
+        }
+      }
+    }, 'image/jpeg', 0.8);
+  };
+
   const formatTime = (secs: number) => {
     const mins = Math.floor(secs / 60);
     const s = secs % 60;
@@ -146,6 +265,9 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
   return (
     <div className="min-h-screen bg-[#080909] text-[#F1F0EA] flex flex-col font-sans">
       
+      {/* Hidden canvas for frame extraction */}
+      <canvas ref={canvasRef} className="hidden" />
+
       {/* ============================================================ */}
       {/* 1. TOP TELEMETRY BAR                                         */}
       {/* ============================================================ */}
@@ -174,9 +296,11 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
           {/* Center: System Status Telemetry */}
           <div className="flex items-center gap-4 flex-wrap text-[11px]">
             <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#151918] border border-[#252A29] rounded">
-              <span className="w-2 h-2 rounded-full bg-[#39FF88] pulse-dot" />
-              <span className="text-[#8E9594]">SYSTEM:</span>
-              <span className="text-[#39FF88] font-bold">ONLINE</span>
+              <span className={`w-2 h-2 rounded-full pulse-dot ${backendHealth === 'ONLINE' ? 'bg-[#39FF88]' : 'bg-[#F5A623]'}`} />
+              <span className="text-[#8E9594]">BACKEND:</span>
+              <span className={`font-bold ${backendHealth === 'ONLINE' ? 'text-[#39FF88]' : 'text-[#F5A623]'}`}>
+                {backendHealth}
+              </span>
             </div>
 
             <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#151918] border border-[#FF4D4D]/30 rounded">
@@ -188,7 +312,9 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
             <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#151918] border border-[#54D6FF]/30 rounded">
               <Eye className="w-3 h-3 text-[#54D6FF]" />
               <span className="text-[#8E9594]">MODE:</span>
-              <span className="text-[#54D6FF] font-bold">VISION AUTONOMY</span>
+              <span className="text-[#54D6FF] font-bold">
+                {operatingMode === 'LIVE' ? 'LIVE INFERENCE' : 'VISION SIMULATOR'}
+              </span>
             </div>
 
             <div className="hidden md:flex items-center gap-1.5 text-[#8E9594]">
@@ -197,74 +323,170 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
             </div>
           </div>
 
-          {/* Right: Simulation Controller */}
+          {/* Right: Operating Mode Switcher */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-[#F5A623] px-2 py-0.5 bg-[#F5A623]/10 border border-[#F5A623]/30 rounded">
-              SIMULATED DEMO
-            </span>
+            <button
+              onClick={() => {
+                setOperatingMode('DEMO');
+                stopCameraStream();
+              }}
+              className={`px-2.5 py-1 rounded text-xs transition-all ${
+                operatingMode === 'DEMO'
+                  ? 'bg-[#F5A623] text-[#080909] font-bold'
+                  : 'bg-[#151918] border border-[#252A29] text-[#8E9594] hover:text-[#F1F0EA]'
+              }`}
+            >
+              DEMO SIMULATOR
+            </button>
+
+            <button
+              onClick={() => {
+                setOperatingMode('LIVE');
+                startCameraStream();
+              }}
+              className={`px-2.5 py-1 rounded text-xs transition-all flex items-center gap-1.5 ${
+                operatingMode === 'LIVE'
+                  ? 'bg-[#39FF88] text-[#080909] font-bold'
+                  : 'bg-[#151918] border border-[#252A29] text-[#8E9594] hover:text-[#F1F0EA]'
+              }`}
+            >
+              <Camera className="w-3 h-3" />
+              <span>LIVE CAMERA</span>
+            </button>
           </div>
 
         </div>
       </header>
 
       {/* ============================================================ */}
-      {/* 2. DEMO INTERFACE DISCLAIMER BANNER                          */}
+      {/* 2. DEMO INTERFACE DISCLAIMER / STATUS BANNER                 */}
       {/* ============================================================ */}
       <div className="bg-[#151918] border-b border-[#252A29] px-4 py-2 font-mono-tech text-[11px] text-[#8E9594] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Info className="w-3.5 h-3.5 text-[#54D6FF]" />
           <span>
-            <strong className="text-[#F1F0EA]">DEMO INTERFACE:</strong> LIVE PERCEPTION BACKEND — NOT CONNECTED. (Full adapter contracts ready for FastAPI/WebSocket bridge).
+            {operatingMode === 'LIVE' ? (
+              backendHealth === 'ONLINE' ? (
+                <span className="text-[#39FF88]">
+                  <strong>LIVE PIPELINE ACTIVE:</strong> Streaming frames to FastAPI backend on {systemState.perception.model} ({systemState.perception.inferenceMs}ms latency).
+                </span>
+              ) : (
+                <span className="text-[#F5A623]">
+                  <strong>BACKEND CONNECTIVITY NOTICE:</strong> Backend at <code className="text-[#F1F0EA]">{telemetryAdapter.getBackendUrl()}</code> is connecting. Operating in local preview mode.
+                </span>
+              )
+            ) : (
+              <span>
+                <strong className="text-[#F1F0EA]">SIMULATION MODE:</strong> Running deterministic SIH 26126 dynamic replanning scenario. Switch to <strong>LIVE CAMERA</strong> to run real SegFormer-B0 inference.
+              </span>
+            )}
           </span>
         </div>
         <div className="text-[#59605F]">
-          MASTERPLAN COMPLIANT (§22–24)
+          API: {telemetryAdapter.getBackendUrl()}
         </div>
       </div>
+
+      {/* Camera Permission Error Notice */}
+      {cameraError && (
+        <div className="bg-[#FF4D4D]/10 border-b border-[#FF4D4D]/30 px-4 py-2 text-xs font-mono-tech text-[#FF4D4D] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            <span>Camera Error: {cameraError}. Please grant browser camera permissions.</span>
+          </div>
+          <button onClick={() => setCameraError(null)} className="underline">Dismiss</button>
+        </div>
+      )}
 
       {/* ============================================================ */}
       {/* 3. MAIN DASHBOARD CONTENT GRID                               */}
       {/* ============================================================ */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         
-        {/* Step Banner & Interactive Controller */}
+        {/* Step Banner / Live Controls */}
         <div className="bg-[#101313] border border-[#252A29] rounded-lg p-4 corner-brackets flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 font-mono-tech text-xs">
-              <span className="text-[#F5A623] font-bold">DEMO SCENARIO STEP {demoStepIndex + 1}/6:</span>
-              <span className="text-[#F1F0EA] font-semibold">{currentStep.title}</span>
-            </div>
-            <div className="font-mono-tech text-[11px] text-[#8E9594]">
-              {currentStep.event.message}
-            </div>
-          </div>
+          {operatingMode === 'DEMO' ? (
+            <>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 font-mono-tech text-xs">
+                  <span className="text-[#F5A623] font-bold">DEMO SCENARIO STEP {demoStepIndex + 1}/6:</span>
+                  <span className="text-[#F1F0EA] font-semibold">{currentStep.title}</span>
+                </div>
+                <div className="font-mono-tech text-[11px] text-[#8E9594]">
+                  {currentStep.event.message}
+                </div>
+              </div>
 
-          <div className="flex items-center gap-2 font-mono-tech text-xs">
-            <button
-              onClick={handleStartDemo}
-              disabled={isPlaying}
-              className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span>{isPlaying ? 'PLAYING...' : 'START DEMO'}</span>
-            </button>
+              <div className="flex items-center gap-2 font-mono-tech text-xs">
+                <button
+                  onClick={handleStartDemo}
+                  disabled={isPlaying}
+                  className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  <span>{isPlaying ? 'PLAYING...' : 'START DEMO'}</span>
+                </button>
 
-            <button
-              onClick={handleNextStep}
-              className="btn-secondary py-2 px-3 text-xs flex items-center gap-1.5"
-            >
-              <FastForward className="w-3.5 h-3.5" />
-              <span>STEP</span>
-            </button>
+                <button
+                  onClick={handleNextStep}
+                  className="btn-secondary py-2 px-3 text-xs flex items-center gap-1.5"
+                >
+                  <FastForward className="w-3.5 h-3.5" />
+                  <span>STEP</span>
+                </button>
 
-            <button
-              onClick={handleReset}
-              className="btn-secondary py-2 px-3 text-xs flex items-center gap-1.5"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>RESET</span>
-            </button>
-          </div>
+                <button
+                  onClick={handleReset}
+                  className="btn-secondary py-2 px-3 text-xs flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>RESET</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 font-mono-tech text-xs">
+                  <span className="text-[#39FF88] font-bold">LIVE PERCEPTION FEED:</span>
+                  <span className="text-[#F1F0EA] font-semibold">
+                    {isCameraActive ? 'Camera Streaming @ 2.5 FPS' : 'Camera Paused'}
+                  </span>
+                </div>
+                <div className="font-mono-tech text-[11px] text-[#8E9594]">
+                  Dominant Terrain: <strong className="text-[#39FF88]">{systemState.perception.dominant_class || 'SMOOTH'}</strong> // Inference Latency: <strong className="text-[#54D6FF]">{systemState.perception.inferenceMs} ms</strong>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 font-mono-tech text-xs">
+                {isCameraActive ? (
+                  <button
+                    onClick={stopCameraStream}
+                    className="btn-secondary py-2 px-3 text-xs flex items-center gap-1.5 text-[#FF4D4D] border-[#FF4D4D]/40"
+                  >
+                    <VideoOff className="w-3.5 h-3.5" />
+                    <span>STOP CAMERA</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={startCameraStream}
+                    className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>START CAMERA</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={checkBackendHealth}
+                  className="btn-secondary py-2 px-3 text-xs flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>PING BACKEND</span>
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* ============================================================ */}
@@ -277,11 +499,13 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
             <div>
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#252A29] font-mono-tech text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#39FF88]" />
-                  <span className="font-bold text-[#F1F0EA]">FORWARD STEREO CAM</span>
+                  <span className={`w-2 h-2 rounded-full ${isCameraActive ? 'bg-[#39FF88] animate-ping' : 'bg-[#39FF88]'}`} />
+                  <span className="font-bold text-[#F1F0EA]">
+                    {operatingMode === 'LIVE' ? 'LIVE WEBCAM SENSOR' : 'FORWARD STEREO CAM'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-3 text-[#8E9594]">
-                  <span>22.4 FPS</span>
+                  <span>{systemState.perception.fps || 22.4} FPS</span>
                   <button
                     onClick={() => setShowSegOverlay(!showSegOverlay)}
                     className="hover:text-[#F5A623] flex items-center gap-1 text-[10px] uppercase underline cursor-pointer"
@@ -294,27 +518,46 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
 
               {/* Camera Video / Image Container with Reticle */}
               <div className="relative aspect-[16/10] bg-[#080909] rounded border border-[#252A29] overflow-hidden">
-                <img
-                  src="/assets/prototype/camera_feed.jpg"
-                  alt="DRISHTI Rover Forward Camera Perception Feed"
-                  className="w-full h-full object-cover"
-                />
+                
+                {operatingMode === 'LIVE' && isCameraActive ? (
+                  <div className="relative w-full h-full">
+                    {/* Live Video Tag */}
+                    <video
+                      ref={videoRef}
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+
+                    {/* Backend Segmentation Overlay Preview */}
+                    {showSegOverlay && liveOverlayB64 && (
+                      <img
+                        src={`data:image/jpeg;base64,${liveOverlayB64}`}
+                        alt="SegFormer segmentation mask overlay"
+                        className="absolute inset-0 w-full h-full object-cover mix-blend-screen opacity-70 pointer-events-none"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <img
+                    src="/assets/prototype/camera_feed.jpg"
+                    alt="DRISHTI Rover Forward Camera Perception Feed"
+                    className="w-full h-full object-cover"
+                  />
+                )}
 
                 <div className="scanlines absolute inset-0 pointer-events-none" />
 
-                {/* Optional Segmentation Overlay */}
-                {showSegOverlay && (
+                {/* Demo Mode Synthetic Mask */}
+                {operatingMode === 'DEMO' && showSegOverlay && (
                   <div className="absolute inset-0 pointer-events-none">
                     <svg className="w-full h-full" viewBox="0 0 640 400" preserveAspectRatio="none">
-                      {/* Smooth Trail Polygon */}
                       <polygon 
                         points="140,400 500,400 350,180 290,180" 
                         fill="rgba(57, 255, 136, 0.25)" 
                         stroke="#39FF88" 
                         strokeWidth="1"
                       />
-
-                      {/* Rough Flanks */}
                       <polygon 
                         points="0,400 140,400 290,180 0,180" 
                         fill="rgba(84, 214, 255, 0.2)" 
@@ -323,8 +566,6 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
                         points="500,400 640,400 640,180 350,180" 
                         fill="rgba(245, 166, 35, 0.2)" 
                       />
-
-                      {/* Dynamic Obstacle Box when active */}
                       {activeObstacle && (
                         <g>
                           <rect 
@@ -355,12 +596,11 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
                 {/* HUD Overlay Reticle */}
                 <div className="absolute inset-0 p-3 flex flex-col justify-between pointer-events-none font-mono-tech text-[10px]">
                   <div className="flex justify-between items-center text-[#54D6FF] bg-[#080909]/70 px-2 py-0.5 rounded border border-[#252A29]">
-                    <span>EXP: AUTO (ISO 100)</span>
-                    <span>FOV: 85° H-FOV</span>
+                    <span>MODE: {operatingMode}</span>
+                    <span>BACKEND: {backendHealth}</span>
                   </div>
 
-                  {/* Dynamic Alert Banner over Camera */}
-                  {activeObstacle && (
+                  {activeObstacle && operatingMode === 'DEMO' && (
                     <div className="self-center bg-[#FF4D4D]/90 text-[#080909] font-bold px-3 py-1 rounded text-xs animate-pulse">
                       OBSTACLE ENCROACHMENT DETECTED
                     </div>
@@ -368,7 +608,7 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
 
                   <div className="flex justify-between text-[#8E9594] bg-[#080909]/80 px-2 py-1 rounded border border-[#252A29]">
                     <span>CONFIDENCE: {(systemState.perception.confidence * 100).toFixed(1)}%</span>
-                    <span className="text-[#39FF88]">MODEL: SegFormer-B0</span>
+                    <span className="text-[#39FF88]">MODEL: {systemState.perception.model}</span>
                   </div>
                 </div>
 
@@ -378,8 +618,8 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
             </div>
 
             <div className="mt-3 font-mono-tech text-[11px] text-[#59605F] flex justify-between">
-              <span>CAMERA ID: DEV_CAM_01</span>
-              <span>INFERENCE: 44.6ms</span>
+              <span>CAMERA: {operatingMode === 'LIVE' ? 'USER MEDIA' : 'TESTSET_DEV_01'}</span>
+              <span>INFERENCE: {systemState.perception.inferenceMs}ms</span>
             </div>
           </div>
 
@@ -412,8 +652,8 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
                     strokeWidth="1" 
                   />
 
-                  {/* Dynamic Obstacle on BEV */}
-                  {activeObstacle && (
+                  {/* Dynamic Obstacle on BEV in Demo Mode */}
+                  {activeObstacle && operatingMode === 'DEMO' && (
                     <g>
                       <circle cx="200" cy="140" r="28" fill="rgba(255, 77, 77, 0.15)" stroke="#FF4D4D" strokeWidth="1" strokeDasharray="2 2" />
                       <circle cx="200" cy="140" r="16" fill="#FF4D4D" stroke="#FF4D4D" strokeWidth="2" />
@@ -440,16 +680,8 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
                         strokeDasharray="3 3"
                         className="animate-pulse"
                       />
-                      <path
-                        d="M 200 230 Q 260 140 210 50"
-                        fill="none"
-                        stroke="#F5A623"
-                        strokeWidth="1"
-                        strokeDasharray="2 2"
-                        opacity="0.5"
-                      />
                     </g>
-                  ) : activeObstacle ? (
+                  ) : activeObstacle && operatingMode === 'DEMO' ? (
                     <path
                       d="M 200 230 Q 155 140 195 50"
                       fill="none"
@@ -481,7 +713,7 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
 
                 {/* Map Bottom Status */}
                 <div className="absolute bottom-2 left-2 right-2 flex justify-between font-mono-tech text-[10px] text-[#8E9594] bg-[#080909]/80 px-2 py-1 rounded border border-[#252A29]">
-                  <span>PLANNER: A* COST-WEIGHTED</span>
+                  <span>PLANNER: {systemState.navigation.planner}</span>
                   <span>
                     PATH STATUS:{' '}
                     <strong className={systemState.navigation.pathValid ? 'text-[#39FF88]' : 'text-[#FF4D4D]'}>
@@ -512,14 +744,18 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
               <span className="font-bold text-[#F1F0EA] flex items-center gap-1.5">
                 <Eye className="w-4 h-4 text-[#39FF88]" /> PERCEPTION (6 CLASSES)
               </span>
-              <span className="text-[10px] text-[#F5A623] px-1.5 py-0.2 bg-[#F5A623]/10 border border-[#F5A623]/30 rounded">
-                DEMO DATA
+              <span className={`text-[10px] px-1.5 py-0.2 rounded border ${
+                operatingMode === 'LIVE' && backendHealth === 'ONLINE'
+                  ? 'text-[#39FF88] bg-[#39FF88]/10 border-[#39FF88]/30'
+                  : 'text-[#F5A623] bg-[#F5A623]/10 border-[#F5A623]/30'
+              }`}>
+                {operatingMode === 'LIVE' && backendHealth === 'ONLINE' ? 'LIVE INFERENCE' : 'DEMO DATA'}
               </span>
             </div>
 
             {/* Class distribution bars */}
             <div className="space-y-2.5 font-mono-tech text-xs">
-              {INITIAL_CLASSES.map((cls) => (
+              {systemState.perception.classes.map((cls) => (
                 <div key={cls.name} className="space-y-1">
                   <div className="flex justify-between text-[11px]">
                     <span className="text-[#8E9594]">{cls.name}</span>
@@ -539,7 +775,7 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
             </div>
 
             <div className="pt-2 text-[10px] font-mono-tech text-[#59605F] border-t border-[#1c2221]">
-              Inference Resolution: 640x512 @ 22.4 FPS
+              Dominant: <strong className="text-[#39FF88]">{systemState.perception.dominant_class || 'SMOOTH'}</strong> // Latency: {systemState.perception.inferenceMs}ms
             </div>
           </div>
 
@@ -550,7 +786,7 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
                 <Crosshair className="w-4 h-4 text-[#54D6FF]" /> LOCALIZATION (VO)
               </span>
               <span className="text-[10px] text-[#54D6FF] px-1.5 py-0.2 bg-[#54D6FF]/10 border border-[#54D6FF]/30 rounded">
-                SIMULATED
+                6-DoF VO
               </span>
             </div>
 
@@ -574,7 +810,7 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
             </div>
 
             <div className="pt-2 text-[10px] font-mono-tech text-[#59605F] border-t border-[#1c2221]">
-              Inliers: 248 features // No satellite fix
+              Inliers: {systemState.localization.inliersCount || 248} features // GPS Disconnected
             </div>
           </div>
 
@@ -585,7 +821,7 @@ export const PrototypePage: React.FC<PrototypePageProps> = ({ onBackToHome }) =>
                 <Compass className="w-4 h-4 text-[#F5A623]" /> NAVIGATION & REPLAN
               </span>
               <span className="text-[10px] text-[#39FF88] px-1.5 py-0.2 bg-[#39FF88]/10 border border-[#39FF88]/30 rounded">
-                DEMO STATE
+                A* SEARCH
               </span>
             </div>
 
