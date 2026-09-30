@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIH 26126 — Live Autonomous Navigation Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-secondary: #111827;
+            --bg-card: rgba(23, 32, 51, 0.85);
+            --border-color: rgba(75, 85, 99, 0.4);
+            --border-accent: #3b82f6;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top Header */
+        header {
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-badge {
+            background: linear-gradient(135deg, #2563eb, #06b6d4);
+            color: white;
+            font-weight: 700;
+            font-size: 0.85rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: var(--accent-green);
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-green);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        /* Main 4-Panel Grid */
+        main {
+            flex: 1;
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .panels-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            flex: 1;
+        }
+
+        .panel-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            position: relative;
+            transition: border-color 0.2s;
+        }
+
+        .panel-card:hover {
+            border-color: rgba(59, 130, 246, 0.6);
+        }
+
+        .panel-header {
+            padding: 10px 16px;
+            background: rgba(17, 24, 39, 0.7);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent-cyan);
+        }
+
+        .panel-tag {
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+        }
+
+        .panel-media {
+            flex: 1;
+            min-height: 280px;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .panel-media img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .placeholder-text {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Status & Telemetry Bar */
+        .status-bar {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px 20px;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .status-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .status-value {
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-ok {
+            color: var(--accent-green);
+        }
+
+        .badge-found {
+            color: var(--accent-green);
+        }
+
+        .badge-nopath {
+            color: var(--accent-red);
+        }
+
+        .badge-valid {
+            color: var(--accent-green);
+        }
+
+        .badge-invalid {
+            color: var(--accent-red);
+        }
+
+        .badge-fps {
+            color: var(--accent-yellow);
+        }
+
+        /* Bottom Footer / Details */
+        footer {
+            padding: 10px 24px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(75, 85, 99, 0.2);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .coords-info {
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .panels-grid {
+                grid-template-columns: 1fr;
+            }
+            .status-bar {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-title-group">
+            <span class="logo-badge">SIH 26126</span>
+            <h1>Live Autonomous Navigation Dashboard</h1>
+        </div>
+        <div class="header-meta">
+            <span>Camera: <strong style="color: var(--text-primary);" id="meta-camera">iPhone Continuity Camera</strong></span>
+            <span>Model: <strong style="color: var(--text-primary);">SegFormer-B0</strong></span>
+            <span>Device: <strong style="color: var(--text-primary);" id="meta-device">MPS</strong></span>
+            <div class="live-indicator">
+                <span class="live-dot" id="conn-dot"></span>
+                <span id="conn-status">LIVE STREAM</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="panels-grid">
+            <!-- PANEL 1: Raw Camera Frame -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <span class="panel-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        PANEL 1: RAW CAMERA
+                    </span>
+                    <span class="panel-tag">Source: OpenCV / Continuity Camera</span>
+                </div>
+                <div class="panel-media">
+                    <img id="img-raw" alt="Raw Camera Stream" src="" style="display: none;">
+                    <div class="placeholder-text" id="ph-raw">Waiting for video stream...</div>
+                </div>
+            </div>
+
+            <!-- PANEL 2: Segmentation Overlay -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <span class="panel-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        PANEL 2: SEGMENTATION
+                    </span>
+                    <span class="panel-tag">SegFormer 6-Class Overlay</span>
+                </div>
+                <div class="panel-media">
+                    <img id="img-seg" alt="Segmentation Overlay" src="" style="display: none;">
+                    <div class="placeholder-text" id="ph-seg">Waiting for segmentation...</div>
+                </div>
+            </div>
+
+            <!-- PANEL 3: Traversability Costmap -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <span class="panel-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                        PANEL 3: TRAVERSABILITY
+                    </span>
+                    <span class="panel-tag">Cost Map [0.0 = Smooth, 1.0 = Blocked]</span>
+                </div>
+                <div class="panel-media">
+                    <img id="img-trav" alt="Traversability Costmap" src="" style="display: none;">
+                    <div class="placeholder-text" id="ph-trav">Waiting for traversability...</div>
+                </div>
+            </div>
+
+            <!-- PANEL 4: A* Navigation Map -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <span class="panel-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+                        PANEL 4: NAVIGATION (BEV / A*)
+                    </span>
+                    <span class="panel-tag">BEV Grid + A* Route</span>
+                </div>
+                <div class="panel-media">
+                    <img id="img-nav" alt="Navigation Map" src="" style="display: none;">
+                    <div class="placeholder-text" id="ph-nav">Waiting for A* planner...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-Time Status Area -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">Segmentation</span>
+                <span class="status-value badge-ok" id="stat-seg">OK</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Costmap</span>
+                <span class="status-value badge-ok" id="stat-costmap">OK</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Path</span>
+                <span class="status-value" id="stat-path">SEARCHING...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Path Valid</span>
+                <span class="status-value" id="stat-valid">--</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Blocked Cells</span>
+                <span class="status-value" id="stat-blocked" style="color: var(--text-primary);">--</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Framerate</span>
+                <span class="status-value badge-fps" id="stat-fps">0.0 FPS</span>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="coords-info" id="coords-info">
+            DEMO PLANNING COORDINATES: Start: (70, 40) → Goal: (10, 40) | [DEMO INTEGRATION — NOT METRIC-CALIBRATED]
+        </div>
+        <div>
+            SIH 26126 Architecture: Camera → SegFormer → Traversability → BEV → A* → Dashboard
+        </div>
+    </footer>
+
+    <script>
+        // Elements
+        const imgRaw = document.getElementById('img-raw');
+        const imgSeg = document.getElementById('img-seg');
+        const imgTrav = document.getElementById('img-trav');
+        const imgNav = document.getElementById('img-nav');
+
+        const phRaw = document.getElementById('ph-raw');
+        const phSeg = document.getElementById('ph-seg');
+        const phTrav = document.getElementById('ph-trav');
+        const phNav = document.getElementById('ph-nav');
+
+        const statSeg = document.getElementById('stat-seg');
+        const statCostmap = document.getElementById('stat-costmap');
+        const statPath = document.getElementById('stat-path');
+        const statValid = document.getElementById('stat-valid');
+        const statBlocked = document.getElementById('stat-blocked');
+        const statFps = document.getElementById('stat-fps');
+        const connDot = document.getElementById('conn-dot');
+        const connStatus = document.getElementById('conn-status');
+        const coordsInfo = document.getElementById('coords-info');
+        const metaDevice = document.getElementById('meta-device');
+
+        // WebSocket connection
+        let socket = null;
+        let reconnectTimer = null;
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+                connDot.style.backgroundColor = 'var(--accent-green)';
+                connDot.style.boxShadow = '0 0 8px var(--accent-green)';
+                connStatus.textContent = 'LIVE STREAM';
+                connStatus.style.color = 'var(--accent-green)';
+                console.log('Connected to navigation stream.');
+            };
+
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    // Update Images
+                    if (data.raw) {
+                        imgRaw.src = 'data:image/jpeg;base64,' + data.raw;
+                        imgRaw.style.display = 'block';
+                        phRaw.style.display = 'none';
+                    }
+                    if (data.segmentation) {
+                        imgSeg.src = 'data:image/jpeg;base64,' + data.segmentation;
+                        imgSeg.style.display = 'block';
+                        phSeg.style.display = 'none';
+                    }
+                    if (data.traversability) {
+                        imgTrav.src = 'data:image/jpeg;base64,' + data.traversability;
+                        imgTrav.style.display = 'block';
+                        phTrav.style.display = 'none';
+                    }
+                    if (data.navigation) {
+                        imgNav.src = 'data:image/jpeg;base64,' + data.navigation;
+                        imgNav.style.display = 'block';
+                        phNav.style.display = 'none';
+                    }
+
+                    // Update Telemetry & Status
+                    statSeg.textContent = data.seg_status || 'OK';
+                    statCostmap.textContent = data.costmap_status || 'OK';
+
+                    if (data.path_found) {
+                        statPath.textContent = 'FOUND';
+                        statPath.className = 'status-value badge-found';
+                    } else {
+                        statPath.textContent = 'NO PATH';
+                        statPath.className = 'status-value badge-nopath';
+                    }
+
+                    if (data.path_valid) {
+                        statValid.textContent = 'YES';
+                        statValid.className = 'status-value badge-valid';
+                    } else {
+                        statValid.textContent = 'NO';
+                        statValid.className = 'status-value badge-invalid';
+                    }
+
+                    statBlocked.textContent = `${data.blocked_cells || 0} (${data.blocked_pct ? data.blocked_pct.toFixed(1) : 0}%)`;
+                    statFps.textContent = `${data.fps ? data.fps.toFixed(1) : '0.0'} FPS`;
+
+                    if (data.device) {
+                        metaDevice.textContent = data.device;
+                    }
+
+                    if (data.start && data.goal) {
+                        coordsInfo.textContent = `DEMO PLANNING COORDINATES: Start (${data.start[0]}, ${data.start[1]}) → Goal (${data.goal[0]}, ${data.goal[1]}) | Path Length: ${data.path_len || 0} waypoints | [NOT METRIC-CALIBRATED]`;
+                    }
+                } catch (err) {
+                    console.error('Error parsing frame payload:', err);
+                }
+            };
+
+            socket.onclose = () => {
+                connDot.style.backgroundColor = 'var(--accent-red)';
+                connDot.style.boxShadow = '0 0 8px var(--accent-red)';
+                connStatus.textContent = 'DISCONNECTED';
+                connStatus.style.color = 'var(--accent-red)';
+                console.log('Stream disconnected. Reconnecting in 2s...');
+                clearTimeout(reconnectTimer);
+                reconnectTimer = setTimeout(connectWebSocket, 2000);
+            };
+
+            socket.onerror = (err) => {
+                console.error('WebSocket error:', err);
+                socket.close();
+            };
+        }
+
+        connectWebSocket();
+    </script>
+</body>
+</html>
